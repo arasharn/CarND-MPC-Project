@@ -30,6 +30,60 @@ Self-Driving Car Engineer Nanodegree Program
 * Simulator. You can download these from the [releases tab](https://github.com/udacity/self-driving-car-sim/releases).
 * Not a dependency but read the [DATA.md](./DATA.md) for a description of the data sent back from the simulator.
 
+## Defining Car Model
+
+The model of the cars is defined as:
+
+$$x[t] = x[t-1] + v[t-1]cos(psi[t-1])dt$$
+$$y[t] = y[t-1] + v[t-1]sin(psi[t-1])dt$$
+$$\psi[t] = \psi[t-1] + \frac{v[t-1]}{Lf} \Delta[t-1]dt$$
+$$v[t] = v[t-1] + a[t-1] dt$$
+$$cte[t] = f(x[t-1]) - y[t-1] + v[t-1] sin(\epsilon[t-1]) * dt$$
+$$\epsilon[t] = \psi[t] - \psi[t-1] + \frac{v[t-1] \delta[t-1]}{Lf}dt$$
+
+Where:
+
+$x$ and $y$ are position of the vehicle
+$\psi$ is the heading orientation
+$v$ is the velocity
+$cte$ is the cross-track error that is distance of the vehicle's center line from the middle of the lane
+$\epsilon$ is the orientation error
+
+## main.cpp
+
+main.cpp is initialized with bottom values from the simulator
+
+* ptsx is the x-position of waypoints ahead on the track in global coordinates
+* ptsy is the y-position of waypoints ahead on the track in global coordinates
+* px is the current x-position of the vehicle's position in global coordinates
+* py is the current y-position of the vehicle's position in global coordinates
+* psi is the current orientation angle of the vehicle
+* v is the current velocity of the vehicle
+* steering_angle is the current steering angle
+* throttle is the current throttle
+
+After loading all the values, it is needed to transform them into the into the coordinate system of the vehicle by using the transformation matrix. In this code the waypoint vectors ptsx and ptsy are transformed to the vehicle's coordinate system and new waypoint vectors are called x_vehicle and y_vehicle. These two vectors specify the way the car is intended to follow.
+
+In the next step, a third order polynomial is fitted to these waypoints using the `polyfit` function and the The cross-track error (cte) is then calculated by evaluating the polynomial function at the current position of the car using `polyeval`. It should be noticed since the path is transformed to the car coordinate system, the position and orientation of the car (px, py and psi) are all zeros in the car coordinate system. 
+
+Also, the Latency of 100 ms for next step was added to predict the state of the system. This predicted state is then input to the controller.
+
+Finally, states of the system and the polynomial coefficients aare needed to the MPC controller and the by using them controller estimates the steering angle and the throttle values to keep sth car in the track(it uses the `mpc.solve`).
+
+## MPC.cpp
+
+In general the goal of using the controller is to minimize the cost function for different factors such as:
+
+* Sum of square values of cte and epsi to minimize cross-track and orientation errors.
+* Sum of square values of (v - v_ref) to minimize the difference of the speed with the reference speed.
+* Sum of square of actuator values a and delta to penalize large actuator actions.
+* Sum of square values of the difference between two consecutive actuator values to penalize sharp changes.
+
+To do that new weight parameters were defined to prioritize the importance of each factor in the cost function. The values for these weight values were obtained through trial and error that based on the observations weights corresponding to the steering angle input and its rate have the most significant impact on the performance of the system. Large values for these two weights (W_DELTA and W_DDELTA) help improving the stability of the car and avoiding the erratic and sudden steering behavior. 
+
+## Timestep Length and Elapsed Duration (N & dt):
+
+The number `N` and `dt` define the prediction horizon. Choosing a long prediction horizon can theoretically improve the prediction, but in practice, it increases the computational complexity. Due to the high number of points, the controller becomes slower and can become unstable. After trial and error it was found out that N = 10 and dt = 0.1 which corresponds to a 1-second time horizon work best for the model.
 
 ## Basic Build Instructions
 
